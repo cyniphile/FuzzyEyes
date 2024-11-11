@@ -91,12 +91,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 }
 
+
 struct ContentView: View {
     @Binding var isFullScreen: Bool
     @State private var timeRemaining = 20
     @State private var timer: Timer?
     @Environment(\.scenePhase) private var scenePhase
     @State private var windowObserver: Any?
+    
+    
     
     var body: some View {
         Group {
@@ -126,35 +129,41 @@ struct ContentView: View {
         .onAppear {
             print("ContentView: View appeared")
             setupNotificationObserver()
+            setupNotificationCategory()  // Add this line
             startBackgroundTimer()
         }
     }
     
-    func setupNotificationObserver() {
-        print("ContentView: Setting up notification observer")
-        windowObserver = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("NotificationTapped"),
-            object: nil,
-            queue: .main) { _ in
-                print("ContentView: Notification tap received")
-                isFullScreen = true
-                if let window = NSApp.windows.first {
-                    window.setFrame(NSScreen.main?.frame ?? .zero, display: true)
-                }
-        }
+    func setupNotificationCategory() {
+        let category = UNNotificationCategory(
+            identifier: "TIMER_ALERT",
+            actions: [
+                UNNotificationAction(
+                    identifier: "START_TIMER",
+                    title: "Start Timer",
+                    options: .foreground)
+            ],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+        
+        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
     
     func sendImmedateNotification() {
         print("ContentView: Sending immediate notification")
         let content = UNMutableNotificationContent()
-        content.title = "Test Notification"
-        content.body = "This is a test notification"
+        content.title = "Time for a break!"
+        content.body = "Click to start your 20-second timer"
         content.sound = .default
+        content.interruptionLevel = .critical
+        content.relevanceScore = 1.0
+        content.categoryIdentifier = "TIMER_ALERT"
         
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
             content: content,
-            trigger: nil)  // nil trigger means send immediately
+            trigger: nil)
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
