@@ -133,6 +133,17 @@ struct ContentView: View {
             startBackgroundTimer()
         }
     }
+    func setupNotificationObserver() {
+        windowObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("NotificationTapped"),
+            object: nil,
+            queue: .main) { _ in
+                isFullScreen = true
+                if let window = NSApp.windows.first {
+                    window.setFrame(NSScreen.main?.frame ?? .zero, display: true)
+                }
+        }
+    }
     
     func setupNotificationCategory() {
         let category = UNNotificationCategory(
