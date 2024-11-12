@@ -205,15 +205,6 @@ struct TimerView: View {
             Text("\(timeRemaining)")
                 .font(.system(size: 120, weight: .bold))
                 .foregroundColor(.white)
-            
-            Button("Exit") {
-                timer?.invalidate()
-                isFullScreen = false
-                if let window = NSApp.windows.first {
-                    window.setFrame(CGRect(x: 0, y: 0, width: 200, height: 150), display: true, animate: true)
-                    window.center()
-                }
-            }
             .foregroundColor(.white)
             .padding()
         }
