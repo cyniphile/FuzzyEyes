@@ -13,15 +13,15 @@ struct TimerApp: App {
         }
         .windowStyle(.hiddenTitleBar)
 
-        MenuBarExtra("FuzzyEyes", systemImage: "timer") {
+        MenuBarExtra("FuzzyEyes", systemImage: "eye") {
             Button("Open FuzzyEyes") {
-                NSApp.activate(ignoringOtherApps: true)
-                if let window = NSApp.windows.first {
-                    window.makeKeyAndOrderFront(nil)
-                }
+            NSApp.activate(ignoringOtherApps: true)
+            if let window = NSApp.windows.first {
+                window.makeKeyAndOrderFront(nil)
+            }
             }
             Button("Quit") {
-                NSApplication.shared.terminate(nil)
+            NSApplication.shared.terminate(nil)
             }
         }
     }
