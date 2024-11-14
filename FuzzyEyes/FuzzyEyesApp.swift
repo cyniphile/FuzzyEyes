@@ -1,6 +1,6 @@
+import AVFoundation
 import SwiftUI
 import UserNotifications
-import AVFoundation
 
 @main
 struct TimerApp: App {
@@ -12,7 +12,7 @@ struct TimerApp: App {
             ContentView(isFullScreen: $isFullScreen)
         }
         .windowStyle(.hiddenTitleBar)
-        
+
         MenuBarExtra("FuzzyEyes", systemImage: "timer") {
             Button("Open FuzzyEyes") {
                 NSApp.activate(ignoringOtherApps: true)
@@ -33,12 +33,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         print("AppDelegate: Initializing")
         UNUserNotificationCenter.current().delegate = self
     }
-    
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("AppDelegate: App did finish launching")
         requestNotificationPermissions()
     }
-    
+
     func requestNotificationPermissions() {
         print("AppDelegate: Requesting notification permissions")
         let center = UNUserNotificationCenter.current()
@@ -53,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             }
         }
     }
-    
+
     func checkNotificationPermissions() {
         print("AppDelegate: Checking notification permissions")
         UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -63,7 +63,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             print("  Sound setting: \(settings.soundSetting.rawValue)")
             print("  Badge setting: \(settings.badgeSetting.rawValue)")
             print("  Notification center setting: \(settings.notificationCenterSetting.rawValue)")
-            
+
             if settings.authorizationStatus != .authorized {
                 DispatchQueue.main.async {
                     self.requestNotificationPermissions()
@@ -71,24 +71,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             }
         }
     }
-    
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                              willPresent notification: UNNotification,
-                              withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) ->
+            Void
+    ) {
         print("AppDelegate: Will present notification")
         completionHandler([.banner, .sound, .list])
     }
-    
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                              didReceive response: UNNotificationResponse,
-                              withCompletionHandler completionHandler: @escaping () -> Void) {
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
         print("AppDelegate: Did receive notification response")
         NSApp.activate(ignoringOtherApps: true)
-        NotificationCenter.default.post(name: NSNotification.Name("NotificationTapped"), object: nil)
+        NotificationCenter.default.post(
+            name: NSNotification.Name("NotificationTapped"), object: nil)
         completionHandler()
     }
 }
-
 
 struct ContentView: View {
     @Binding var isFullScreen: Bool
@@ -96,9 +101,7 @@ struct ContentView: View {
     @State private var timer: Timer?
     @Environment(\.scenePhase) private var scenePhase
     @State private var windowObserver: Any?
-    
-    
-    
+
     var body: some View {
         Group {
             if isFullScreen {
@@ -135,14 +138,15 @@ struct ContentView: View {
         windowObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("NotificationTapped"),
             object: nil,
-            queue: .main) { _ in
-                isFullScreen = true
-                if let window = NSApp.windows.first {
-                    window.setFrame(NSScreen.main?.frame ?? .zero, display: true)
-                }
+            queue: .main
+        ) { _ in
+            isFullScreen = true
+            if let window = NSApp.windows.first {
+                window.setFrame(NSScreen.main?.frame ?? .zero, display: true)
+            }
         }
     }
-    
+
     func setupNotificationCategory() {
         let category = UNNotificationCategory(
             identifier: "TIMER_ALERT",
@@ -155,10 +159,10 @@ struct ContentView: View {
             intentIdentifiers: [],
             options: .customDismissAction
         )
-        
+
         UNUserNotificationCenter.current().setNotificationCategories([category])
     }
-    
+
     func sendImmedateNotification() {
         print("ContentView: Sending immediate notification")
         let content = UNMutableNotificationContent()
@@ -168,12 +172,12 @@ struct ContentView: View {
         content.interruptionLevel = .critical
         content.relevanceScore = 1.0
         content.categoryIdentifier = "TIMER_ALERT"
-        
+
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
             content: content,
             trigger: nil)
-        
+
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
                 print("ContentView: Error sending notification: \(error)")
@@ -182,7 +186,7 @@ struct ContentView: View {
             }
         }
     }
-    
+
     func startBackgroundTimer() {
         print("ContentView: Starting background timer")
         timer?.invalidate()
@@ -198,42 +202,40 @@ struct TimerView: View {
     @Binding var isFullScreen: Bool
     @State private var timer: Timer?
     @State private var audioPlayer: AVAudioPlayer?
-    
 
-    
     var body: some View {
         VStack {
             Text("\(timeRemaining)")
                 .font(.system(size: 120, weight: .bold))
                 .foregroundColor(.white)
-            .foregroundColor(.white)
-            .padding()
+                .foregroundColor(.white)
+                .padding()
         }
         .onAppear {
             startTimer()
             setupSound()
         }
     }
-    
+
     func setupSound() {
-         // Choose a system sound
-         if let soundURL = Bundle.main.url(forResource: "sound", withExtension: "mp3") {
-             do {
-                 audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
-                 audioPlayer?.prepareToPlay()
-             } catch {
-                 print("Error loading sound: \(error)")
-             }
-         }
-     }
-    
+        // Choose a system sound
+        if let soundURL = Bundle.main.url(forResource: "sound", withExtension: "mp3") {
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
+                audioPlayer?.prepareToPlay()
+            } catch {
+                print("Error loading sound: \(error)")
+            }
+        }
+    }
+
     func playSound() {
         // Option 1: Play system beep
-        NSSound.beep()
+        NSSound(named: "Submarine")?.play()
         // Option 2: Play custom sound if setup
         audioPlayer?.play()
     }
-    
+
     func startTimer() {
         timeRemaining = 20
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
@@ -242,10 +244,17 @@ struct TimerView: View {
             } else {
                 timer.invalidate()
                 playSound()
-                isFullScreen = false
+                isFullScreen = true
                 if let window = NSApp.windows.first {
-                    window.setFrame(CGRect(x: 0, y: 0, width: 200, height: 150), display: true, animate: true)
+                    window.setFrame(
+                        CGRect(x: 0, y: 0, width: 200, height: 150), display: true, animate: true)
                     window.center()
+                }
+                // Auto-dismiss the window after a brief delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if let window = NSApp.windows.first {
+                        window.close()
+                    }
                 }
             }
         }
