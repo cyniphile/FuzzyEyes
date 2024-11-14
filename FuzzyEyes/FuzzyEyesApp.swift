@@ -1,26 +1,24 @@
 import SwiftUI
 import UserNotifications
+import AVFoundation
 
 @main
 struct TimerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var isFullScreen = false
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView(isFullScreen: $isFullScreen)
         }
         .windowStyle(.hiddenTitleBar)
         
-        MenuBarExtra("Timer", systemImage: "timer") {
-            Button("Open Timer") {
+        MenuBarExtra("FuzzyEyes", systemImage: "timer") {
+            Button("Open FuzzyEyes") {
                 NSApp.activate(ignoringOtherApps: true)
                 if let window = NSApp.windows.first {
                     window.makeKeyAndOrderFront(nil)
                 }
-            }
-            Button("Check Permissions") {
-                appDelegate.checkNotificationPermissions()
             }
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
@@ -109,7 +107,7 @@ struct ContentView: View {
                     .background(Color.black)
             } else {
                 VStack {
-                    Text("Timer running in background")
+                    Text("FuzzyEyes running in background")
                         .padding()
                     Button("Send Test Notification") {
                         print("ContentView: Test notification button pressed")
@@ -199,6 +197,9 @@ struct TimerView: View {
     @Binding var timeRemaining: Int
     @Binding var isFullScreen: Bool
     @State private var timer: Timer?
+    @State private var audioPlayer: AVAudioPlayer?
+    
+
     
     var body: some View {
         VStack {
@@ -210,7 +211,27 @@ struct TimerView: View {
         }
         .onAppear {
             startTimer()
+            setupSound()
         }
+    }
+    
+    func setupSound() {
+         // Choose a system sound
+         if let soundURL = Bundle.main.url(forResource: "sound", withExtension: "mp3") {
+             do {
+                 audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
+                 audioPlayer?.prepareToPlay()
+             } catch {
+                 print("Error loading sound: \(error)")
+             }
+         }
+     }
+    
+    func playSound() {
+        // Option 1: Play system beep
+        NSSound.beep()
+        // Option 2: Play custom sound if setup
+        audioPlayer?.play()
     }
     
     func startTimer() {
@@ -220,6 +241,7 @@ struct TimerView: View {
                 timeRemaining -= 1
             } else {
                 timer.invalidate()
+                playSound()
                 isFullScreen = false
                 if let window = NSApp.windows.first {
                     window.setFrame(CGRect(x: 0, y: 0, width: 200, height: 150), display: true, animate: true)
