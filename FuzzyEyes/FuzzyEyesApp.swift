@@ -18,7 +18,7 @@ class TimerManager: ObservableObject {
         print("TimerManager: Starting background timer, current state: \(isTimerRunning)")
         isTimerRunning = true
         
-        backgroundTimer = Timer(timeInterval: 10, repeats: true) { [weak self] _ in
+        backgroundTimer = Timer(timeInterval: 1200, repeats: true) { [weak self] _ in
             print("TimerManager: Timer fired at \(Date())")
             self?.sendNotification()
         }
