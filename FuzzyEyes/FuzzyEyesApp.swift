@@ -13,7 +13,7 @@ struct TimerApp: App {
         }
         .windowStyle(.hiddenTitleBar)
 
-        MenuBarExtra("FuzzyEyes", systemImage: "timer") {
+        MenuBarExtra("FuzzyEyes", systemImage: "eye") {
             Button("Open FuzzyEyes") {
                 NSApp.activate(ignoringOtherApps: true)
                 if let window = NSApp.windows.first {
