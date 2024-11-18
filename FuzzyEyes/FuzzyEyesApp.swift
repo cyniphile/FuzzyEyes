@@ -71,6 +71,8 @@ class TimerManager: ObservableObject {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    var timerWindow: NSWindow?
+
     override init() {
         super.init()
         print("AppDelegate: Initializing")
@@ -78,86 +80,92 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        print("AppDelegate: App did finish launching")
-        requestNotificationPermissions()
+        print("AppDelegate: App finished launching")
+        TimerManager.shared.startBackgroundTimer()
     }
     
-    func applicationWillTerminate(_ notification: Notification) {
-        print("AppDelegate: App will terminate")
-        TimerManager.shared.stopBackgroundTimer()
-    }
-
-    func requestNotificationPermissions() {
-        print("AppDelegate: Requesting notification permissions")
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted {
-                print("AppDelegate: Notification permission granted")
-                DispatchQueue.main.async {
-                    NSApp.registerForRemoteNotifications()
-                }
-            } else {
-                print("AppDelegate: Notification permission denied: \(String(describing: error))")
-            }
-        }
-    }
-
-    func checkNotificationPermissions() {
-        print("AppDelegate: Checking notification permissions")
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            print("AppDelegate: Current notification settings:")
-            print("  Authorization status: \(settings.authorizationStatus.rawValue)")
-            print("  Alert setting: \(settings.alertSetting.rawValue)")
-            print("  Sound setting: \(settings.soundSetting.rawValue)")
-            print("  Badge setting: \(settings.badgeSetting.rawValue)")
-            print("  Notification center setting: \(settings.notificationCenterSetting.rawValue)")
-
-            if settings.authorizationStatus != .authorized {
-                DispatchQueue.main.async {
-                    self.requestNotificationPermissions()
-                }
-            }
-        }
-    }
-
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        print("AppDelegate: Will present notification")
-        completionHandler([.banner, .sound, .list])
-    }
+    // ... existing methods ...
 
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        print("AppDelegate: Did receive notification response")
-        NSApp.activate(ignoringOtherApps: true)
-        NotificationCenter.default.post(name: NSNotification.Name("NotificationTapped"), object: nil)
+        print("AppDelegate: Did receive notification response with action identifier: \(response.actionIdentifier)")
+        if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            // The user opened the app from the notification
+            NSApp.activate(ignoringOtherApps: true)
+            presentTimerView()
+        }
         completionHandler()
     }
+
+    func dismissTimerWindow() {
+        if let window = timerWindow {
+            window.orderOut(nil) // Removes window from view stack
+            window.close()       // Closes the window
+            timerWindow = nil
+        }
+    }
+
+
+    func presentTimerView() {
+        if timerWindow != nil {
+            // Timer window is already presented
+            return
+        }
+
+        let timerView = TimerView {
+            DispatchQueue.main.async {
+                // Dismiss the window when the timer ends
+                self.timerWindow?.orderOut(nil) // Ensure it's removed from the screen
+                self.timerWindow?.close()
+                self.timerWindow = nil
+                self.dismissTimerWindow()
+            }
+        }
+
+        let window = NSWindow(
+            contentRect: NSScreen.main?.frame ?? NSRect.zero,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false)
+        window.contentView = NSHostingView(rootView: timerView)
+        window.level = .mainMenu + 1
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        window.isReleasedWhenClosed = false // Prevent premature release
+        window.makeKeyAndOrderFront(nil)
+        window.toggleFullScreen(nil)
+        self.timerWindow = window
+    }
+
 }
+
 
 @main
 struct TimerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var timerManager = TimerManager.shared
-    @State private var isFullScreen = false
 
     var body: some Scene {
-        WindowGroup {
-            ContentView(isFullScreen: $isFullScreen)
-                .environmentObject(timerManager)
-        }
-        .windowStyle(.hiddenTitleBar)
-
         MenuBarExtra("FuzzyEyes", systemImage: "eye") {
             Button("Open FuzzyEyes") {
                 NSApp.activate(ignoringOtherApps: true)
-                if let window = NSApp.windows.first {
+                if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "ContentViewWindow" }) {
+                    window.makeKeyAndOrderFront(nil)
+                } else {
+                    // Create a new window with ContentView
+                    let contentView = ContentView()
+                        .environmentObject(timerManager)
+                    let window = NSWindow(
+                        contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+                        styleMask: [.titled, .closable, .resizable],
+                        backing: .buffered,
+                        defer: false)
+                    window.contentView = NSHostingView(rootView: contentView)
+                    window.title = "FuzzyEyes"
+                    window.identifier = NSUserInterfaceItemIdentifier(rawValue: "ContentViewWindow")
+                    window.center()
                     window.makeKeyAndOrderFront(nil)
                 }
             }
@@ -170,93 +178,45 @@ struct TimerApp: App {
 }
 
 struct ContentView: View {
-    @Binding var isFullScreen: Bool
-    @State private var timeRemaining = 20
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var windowObserver: Any?
     @EnvironmentObject private var timerManager: TimerManager
 
     var body: some View {
-        Group {
-            if isFullScreen {
-                TimerView(timeRemaining: $timeRemaining, isFullScreen: $isFullScreen)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.black)
-            } else {
-                VStack {
-                    Text("FuzzyEyes running in background")
-                        .padding()
-                    Button("Send Test Notification") {
-                        print("ContentView: Test notification button pressed")
-                        timerManager.sendManualNotification()
-                    }
-                    .padding()
-                    Button("Check Permissions") {
-                        if let appDelegate = NSApp.delegate as? AppDelegate {
-                            appDelegate.checkNotificationPermissions()
-                        }
-                    }
-                    .padding()
-                    // Debug button
-                    Button(timerManager.isTimerRunning ? "Stop Timer" : "Start Timer") {
-                        if timerManager.isTimerRunning {
-                            timerManager.stopBackgroundTimer()
-                        } else {
-                            timerManager.startBackgroundTimer()
-                        }
-                    }
-                    .padding()
-                }
-                .frame(width: 200, height: 150)
+        VStack {
+            Text("FuzzyEyes running in background")
+                .padding()
+            Button("Send Test Notification") {
+                print("ContentView: Test notification button pressed")
+                timerManager.sendManualNotification()
             }
+            .padding()
+            Button(timerManager.isTimerRunning ? "Stop Timer" : "Start Timer") {
+                if timerManager.isTimerRunning {
+                    timerManager.stopBackgroundTimer()
+                } else {
+                    timerManager.startBackgroundTimer()
+                }
+            }
+            .padding()
         }
+        .frame(width: 400, height: 300)
         .onAppear {
             print("ContentView: View appeared")
-            setupNotificationObserver()
-            setupNotificationCategory()
             timerManager.startBackgroundTimer()
         }
         .onDisappear {
             print("ContentView: View disappeared")
         }
     }
-
-    func setupNotificationObserver() {
-        windowObserver = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("NotificationTapped"),
-            object: nil,
-            queue: .main
-        ) { _ in
-            print("ContentView: Notification tapped, showing full screen")
-            isFullScreen = true
-            if let window = NSApp.windows.first {
-                window.setFrame(NSScreen.main?.frame ?? .zero, display: true)
-            }
-        }
-    }
-
-    func setupNotificationCategory() {
-        let category = UNNotificationCategory(
-            identifier: "TIMER_ALERT",
-            actions: [
-                UNNotificationAction(
-                    identifier: "START_TIMER",
-                    title: "Start Timer",
-                    options: .foreground)
-            ],
-            intentIdentifiers: [],
-            options: .customDismissAction
-        )
-
-        UNUserNotificationCenter.current().setNotificationCategories([category])
-    }
 }
 
+
+
+
+// In your TimerView
 struct TimerView: View {
-    @Binding var timeRemaining: Int
-    @Binding var isFullScreen: Bool
+    var onTimerEnd: (() -> Void)?
+    @State private var timeRemaining = 20
     @State private var timer: Timer?
-    @State private var audioPlayer: AVAudioPlayer?
 
     var body: some View {
         VStack {
@@ -265,6 +225,8 @@ struct TimerView: View {
                 .foregroundColor(.white)
                 .padding()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black)
         .onAppear {
             startTimer()
         }
@@ -275,25 +237,19 @@ struct TimerView: View {
     }
 
     func startTimer() {
-        timeRemaining = 20
+        timeRemaining = 20 // Set your desired timer duration
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
             if timeRemaining > 0 {
                 timeRemaining -= 1
             } else {
                 timer.invalidate()
                 playSound()
-                isFullScreen = false
-                if let window = NSApp.windows.first {
-                    window.setFrame(
-                        CGRect(x: 0, y: 0, width: 200, height: 150), display: true, animate: true)
-                    window.center()
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if let window = NSApp.windows.first {
-                        window.close()
-                    }
+                DispatchQueue.main.async {
+                    onTimerEnd?() // Properly trigger cleanup
                 }
             }
         }
     }
+
 }
+
