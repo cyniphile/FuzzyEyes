@@ -84,8 +84,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         TimerManager.shared.startBackgroundTimer()
     }
     
-    // ... existing methods ...
-
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -122,6 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 self.timerWindow?.close()
                 self.timerWindow = nil
                 self.dismissTimerWindow()
+                TimerManager.shared.startBackgroundTimer()
             }
         }
 
@@ -149,68 +148,13 @@ struct TimerApp: App {
 
     var body: some Scene {
         MenuBarExtra("FuzzyEyes", systemImage: "eye") {
-            Button("Open FuzzyEyes") {
-                NSApp.activate(ignoringOtherApps: true)
-                if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "ContentViewWindow" }) {
-                    window.makeKeyAndOrderFront(nil)
-                } else {
-                    // Create a new window with ContentView
-                    let contentView = ContentView()
-                        .environmentObject(timerManager)
-                    let window = NSWindow(
-                        contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
-                        styleMask: [.titled, .closable, .resizable],
-                        backing: .buffered,
-                        defer: false)
-                    window.contentView = NSHostingView(rootView: contentView)
-                    window.title = "FuzzyEyes"
-                    window.identifier = NSUserInterfaceItemIdentifier(rawValue: "ContentViewWindow")
-                    window.center()
-                    window.makeKeyAndOrderFront(nil)
-                }
-            }
-            Button("Quit") {
+            Button("Quit FuzzyEyes") {
                 TimerManager.shared.stopBackgroundTimer()
                 NSApplication.shared.terminate(nil)
             }
         }
     }
 }
-
-struct ContentView: View {
-    @EnvironmentObject private var timerManager: TimerManager
-
-    var body: some View {
-        VStack {
-            Text("FuzzyEyes running in background")
-                .padding()
-            Button("Send Test Notification") {
-                print("ContentView: Test notification button pressed")
-                timerManager.sendManualNotification()
-            }
-            .padding()
-            Button(timerManager.isTimerRunning ? "Stop Timer" : "Start Timer") {
-                if timerManager.isTimerRunning {
-                    timerManager.stopBackgroundTimer()
-                } else {
-                    timerManager.startBackgroundTimer()
-                }
-            }
-            .padding()
-        }
-        .frame(width: 400, height: 300)
-        .onAppear {
-            print("ContentView: View appeared")
-            timerManager.startBackgroundTimer()
-        }
-        .onDisappear {
-            print("ContentView: View disappeared")
-        }
-    }
-}
-
-
-
 
 // In your TimerView
 struct TimerView: View {
