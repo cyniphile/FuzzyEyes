@@ -82,6 +82,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("AppDelegate: App finished launching")
         TimerManager.shared.startBackgroundTimer()
+        
+        // Set up notification categories with dismiss action
+        let dismissAction = UNNotificationAction(
+            identifier: "DISMISS_ACTION",
+            title: "Dismiss",
+            options: .destructive
+        )
+        
+        let category = UNNotificationCategory(
+            identifier: "TIMER_ALERT",
+            actions: [dismissAction],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+        
+        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
     
     func userNotificationCenter(
@@ -90,11 +106,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         print("AppDelegate: Did receive notification response with action identifier: \(response.actionIdentifier)")
+        
         if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
             // The user opened the app from the notification
             NSApp.activate(ignoringOtherApps: true)
             presentTimerView()
+        } else if response.actionIdentifier == UNNotificationDismissActionIdentifier {
+            // User dismissed the notification - restart the background timer
+            print("AppDelegate: Notification dismissed, restarting timer")
+            TimerManager.shared.startBackgroundTimer()
         }
+        
         completionHandler()
     }
 
@@ -196,4 +218,3 @@ struct TimerView: View {
     }
 
 }
-
